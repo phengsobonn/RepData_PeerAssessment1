@@ -9,17 +9,141 @@ output:
 ## Loading and preprocessing the data
 
 
+We load data and reclassify date column as date format.
+
+```{r Load, results = "hide"}
+setwd("D:/Coursera/Data Science With R/Reproducible Research/Project 1")
+data <- read.csv("activity.csv")
+data$date <- as.Date(data$date, "%Y-%m-%d")
+```
+
 
 ## What is mean total number of steps taken per day?
 
+
+A quick summary of steps variable by date is as below:
+
+Total number of steps taken per day
+
+```{r sum}
+with(data, tapply(steps, date, sum, na.rm = T))
+```
+
+
+Mean of the total number of steps taken per day
+
+```{r mean}
+meansteps <- with(data, tapply(steps, date, mean, na.rm = T))
+round(meansteps, 2)
+```
+
+
+Median of the total number of steps taken per day
+
+```{r median}
+with(data, tapply(steps, date, median, na.rm = T))
+```
 
 
 ## What is the average daily activity pattern?
 
 
+Here, we plot 5-minute interval with average steps across all days to see overall pattern
+
+```{r plot}
+sum.byint <- with(data, tapply(steps, interval, sum, na.rm = T))
+ave.byint <- sum.byint / sum(data$steps, na.rm = T)
+int <- unique(data$interval)
+plot(int, ave.byint, type = "l", xlab = "5-minute Interval (0 - 2355)", ylab = "Average Steps")
+title(main = "Average Daily Activity Pattern")
+```
+
+
+```{r, echo = FALSE, results = "hide"}
+maxsteps <- max(sum.byint)
+row <- grep(maxsteps, sum.byint)
+maxint <- names(sum.byint)[row]
+```
+
+Based on the above plot, we see that within the interval of **`r maxint`**, there is a maximum number of steps taken of **`r maxsteps`**.
+
 
 ## Imputing missing values
 
 
+Now we deal with missing values (coded as **NA**) in the dataset.
+
+Calculate the total number of missing values in the dataset
+
+```{r NA}
+misval <- is.na(data)
+sum(misval)
+```
+
+
+In an attempt to fill in the missing values in the dataset, we decide to replace them with the average of steps taken across all days. We do so by the following:
+
+```{r impute}
+data$steps[is.na(data$steps)] <- mean(data$steps, na.rm = T)
+newdata <- data
+head(newdata)
+```
+
+
+We then create a histogram showing the total number of steps taken each day.
+
+```{r histogram}
+newsum <- with(newdata, tapply(steps, date, sum))
+hist(newsum, breaks = 20, xlab = "Total number of steps", main = "Total number of steps taken each day")
+```
+
+
+The mean total number of steps taken per day of the new dataset is
+
+```{r newmean}
+newmean <- with(newdata, tapply(steps, date, mean))
+round(newmean, 2)
+```
+
+
+The median total number of steps taken per day of the new dataset is
+
+```{r newmedian}
+newmedian <- with(newdata, tapply(steps, date, median))
+round(newmedian, 2)
+```
+
+After imputing missing data, we observe that, in terms of both mean and median, only certain days with NA values have their number of steps taken changed.  
+
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+
+Create a new factor variable with two levels - "weeday" and "weekend"
+
+```{r newvar}
+day <- with(newdata, weekdays(date))
+week <- ifelse(day %in% c("Saturday", "Sunday"), "Weekend", "Weekday")
+newdata <- cbind(newdata, week)
+str(newdata)
+```
+
+
+Now we make a plot to compare daily activity pattern between weekdays and weekends
+
+```{r compare}
+int <- unique(newdata$interval)
+sum.byweek <- with(newdata, tapply(steps, week, sum))
+weekday <- subset(newdata, week == "Weekday", c("steps", "interval"))
+weekday <- with(weekday, tapply(steps, interval, sum))
+weekday <- weekday / sum.byweek[1]
+
+weekend <- subset(newdata, week == "Weekend", c("steps", "interval"))
+weekend <- with(weekend, tapply(steps, interval, sum))
+weekend <- weekend / sum.byweek[2]
+
+par(mfcol = c(2, 1), mar = c(2, 2, 2, 2))
+plot(int, weekday, type = "l", col = "blue", xlab = "5-minute Interval (0 - 2355)", ylab = "Average Steps", main = "Weekdays VS Weekends")
+plot(int, weekend, type = "l", col = "red", xlab = "5-minute Interval (0 - 2355)", ylab = "Average Steps")
+
+```
